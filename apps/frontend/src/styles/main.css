@@ -64,3 +64,54 @@ code {
   line-height: 1.7;
 }
 
+.auth-card {
+  max-width: 460px;
+}
+
+.auth-form {
+  display: grid;
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.field {
+  display: grid;
+  gap: 8px;
+  font-size: 0.95rem;
+  color: var(--muted);
+}
+
+.field input {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 14px;
+  font: inherit;
+  background: #fff;
+  color: var(--text);
+}
+
+.primary-button {
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent);
+  color: white;
+  padding: 12px 18px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.primary-button:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.error-text {
+  margin: 0;
+  color: #a42a2a;
+  font-size: 0.95rem;
+}
+
+.inline-action {
+  margin-top: 24px;
+}

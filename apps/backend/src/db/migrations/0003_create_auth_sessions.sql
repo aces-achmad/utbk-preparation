@@ -1,0 +1,12 @@
+CREATE TABLE IF NOT EXISTS auth_sessions (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  admin_user_id BIGINT UNSIGNED NOT NULL,
+  session_token VARCHAR(255) NOT NULL UNIQUE,
+  expires_at TIMESTAMP NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  revoked_at TIMESTAMP NULL DEFAULT NULL,
+  CONSTRAINT fk_auth_sessions_admin_user
+    FOREIGN KEY (admin_user_id) REFERENCES admin_users(id)
+    ON DELETE CASCADE
+);
+

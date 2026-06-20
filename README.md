@@ -17,5 +17,5 @@ Scaffold runtime:
 Testing foundation:
 
 - `Vitest` is the backend test runner
-- backend tests target a dedicated MySQL test service
+- backend tests target a dedicated test database on the existing MySQL server
 - test startup applies SQL migrations and resets state per suite

@@ -3,7 +3,6 @@
 This scaffold expects:
 
 - `mysql`, `backend`, and `frontend` to run in Docker during development;
-- `mysql_test` to be available for backend test execution;
 - browser access to go through an external reverse proxy such as `Nginx Proxy Manager`;
 - the frontend to call the API through the relative path `/api`.
 
@@ -14,6 +13,6 @@ Important:
 
 Testing notes:
 
-- backend tests use `Vitest` against `mysql_test`, not the main dev database;
-- copy `apps/backend/.env.test.example` into a local `.env.test` flow as needed when running tests outside Docker;
+- backend tests use `Vitest` against a dedicated test database on the existing MySQL server;
+- set `TEST_DATABASE_NAME` or `TEST_DATABASE_URL` when you need to override the default `${MYSQL_DATABASE}_test` naming convention;
 - test startup is responsible for applying migrations before execution.
