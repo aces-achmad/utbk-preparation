@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { getTestPool } from "../../lib/testing/test-database";
 import { testLogger } from "../../lib/testing/test-logger";
+import { AttemptRepository } from "../../modules/attempts/repositories/attempt-repository";
 import { startOrResumeAttempt } from "../../modules/attempts/services/start-or-resume-attempt";
 import {
   createQuestion,
@@ -167,10 +168,12 @@ describe("startOrResumeAttempt", () => {
       logger: testLogger,
       packageSlug: "paket-tps",
     });
+    const repository = new AttemptRepository(pool);
+    const storedSnapshots = await repository.listSnapshots(started.attempt.id);
 
     expect(resumed.attempt.id).toBe(started.attempt.id);
     expect(resumed.snapshots[0]?.questionText).toBe("Soal pertama");
-    expect(resumed.snapshots[0]?.explanationText).toBe("Pembahasan pertama");
     expect(resumed.snapshots[0]?.options[0]?.option_text).toBe("A1");
+    expect(storedSnapshots[0]?.explanationTextSnapshot).toBe("Pembahasan pertama");
   });
 });

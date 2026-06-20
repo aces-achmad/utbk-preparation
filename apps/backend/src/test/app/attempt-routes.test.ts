@@ -110,6 +110,8 @@ describe("attempt routes", () => {
     expect(payload.data.mode).toBe("started");
     expect(payload.data.attempt.packageSlug).toBe("paket-practice");
     expect(payload.data.snapshots).toHaveLength(1);
+    expect(payload.data.snapshots[0].explanationText).toBeUndefined();
+    expect(payload.data.snapshots[0].options[0].is_correct).toBeUndefined();
   });
 
   it("returns resumed mode if the package already has an active attempt", async () => {

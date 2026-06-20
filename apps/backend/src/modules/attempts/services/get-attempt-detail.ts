@@ -34,8 +34,10 @@ export async function getAttemptDetail({
       difficulty: snapshot.difficultySnapshot,
       type: snapshot.typeSnapshot,
       questionText: snapshot.questionTextSnapshot,
-      explanationText: snapshot.explanationTextSnapshot,
-      options: snapshot.optionsSnapshot,
+      options: snapshot.optionsSnapshot.map((option) => ({
+        option_key: option.option_key,
+        option_text: option.option_text,
+      })),
       selectedOptionKeys: snapshot.selectedOptionKeys,
     })),
   };

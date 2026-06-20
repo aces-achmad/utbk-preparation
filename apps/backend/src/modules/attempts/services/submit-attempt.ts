@@ -61,13 +61,15 @@ export async function submitAttempt({
     },
   );
 
-  const finalizedAttempt = await repository.finalizeAttempt({
+  const finalized = await repository.finalizeAttempt({
     attemptId,
     correctCount: summary.correctCount,
     incorrectCount: summary.incorrectCount,
     unansweredCount: summary.unansweredCount,
     scorePercentage: calculateScorePercentage(summary.correctCount, attempt.questionCount),
   });
+
+  const finalizedAttempt = finalized.attempt;
 
   if (!finalizedAttempt) {
     throw new Error("Attempt not found.");

@@ -15,11 +15,39 @@ export async function apiFetch<TData>(input: string, init?: RequestInit) {
         },
   });
 
-  const payload = (await response.json()) as ApiEnvelope<TData>;
+  const payload = (await parseApiPayload<TData>(response)) as ApiEnvelope<TData> | null;
 
   if (!response.ok) {
-    throw new Error(payload.message ?? "Request failed.");
+    throw new Error(payload?.message ?? `Request failed with status ${response.status}.`);
+  }
+
+  if (!payload) {
+    throw new Error("Response payload is empty.");
   }
 
   return payload;
+}
+
+async function parseApiPayload<TData>(response: Response) {
+  const contentType = response.headers.get("content-type") ?? "";
+
+  if (contentType.includes("application/json")) {
+    return (await response.json()) as ApiEnvelope<TData>;
+  }
+
+  const text = await response.text();
+
+  if (!text.trim()) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(text) as ApiEnvelope<TData>;
+  } catch {
+    return {
+      success: false,
+      message: text.slice(0, 240),
+      data: null as TData,
+    } satisfies ApiEnvelope<TData>;
+  }
 }

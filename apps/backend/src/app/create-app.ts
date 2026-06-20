@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { deleteCookie, setCookie } from "hono/cookie";
 import { requestId } from "hono/request-id";
 import type { Pool } from "mysql2/promise";
-import { z } from "zod";
+import { ZodError, z } from "zod";
 
 import type { Logger } from "../lib/logger";
 import { requireSession } from "../middleware/require-session";
@@ -125,11 +125,18 @@ export function createApp({ logger, pool }: CreateAppOptions) {
 
   app.onError((error, c) =>
     c.json(
-      {
-        success: false,
-        message: error.message || "Unexpected server error.",
-        data: null,
-      },
+      error instanceof ZodError
+        ? {
+            success: false,
+            message: "Validation failed.",
+            data: null,
+            errors: error.flatten(),
+          }
+        : {
+            success: false,
+            message: error.message || "Unexpected server error.",
+            data: null,
+          },
       classifyErrorStatus(error),
     ),
   );
@@ -700,6 +707,10 @@ export function createApp({ logger, pool }: CreateAppOptions) {
 }
 
 function classifyErrorStatus(error: Error) {
+  if (error instanceof ZodError) {
+    return 400;
+  }
+
   const message = error.message.toLowerCase();
 
   if (message.includes("not found")) {

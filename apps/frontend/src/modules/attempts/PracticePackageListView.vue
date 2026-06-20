@@ -33,11 +33,9 @@ type StartOrResumeAttemptResponse = {
     difficulty: "easy" | "medium" | "hard";
     type: "single_choice" | "multiple_response";
     questionText: string;
-    explanationText: string;
     options: Array<{
       option_key: string;
       option_text: string;
-      is_correct: boolean;
     }>;
   }>;
 };

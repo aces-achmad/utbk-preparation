@@ -26,8 +26,10 @@ export type StartOrResumeAttemptResult = {
     difficulty: "easy" | "medium" | "hard";
     type: "single_choice" | "multiple_response";
     questionText: string;
-    explanationText: string;
-    options: CanonicalImportQuestionOption[];
+    options: Array<{
+      option_key: string;
+      option_text: string;
+    }>;
     selectedOptionKeys: string[];
   }>;
 };
@@ -85,8 +87,7 @@ export async function startOrResumeAttempt({
         difficulty: snapshot.difficultySnapshot,
         type: snapshot.typeSnapshot,
         questionText: snapshot.questionTextSnapshot,
-        explanationText: snapshot.explanationTextSnapshot,
-        options: snapshot.optionsSnapshot,
+        options: snapshot.optionsSnapshot.map(toPracticeOption),
         selectedOptionKeys: snapshot.selectedOptionKeys,
       })),
     };
@@ -166,8 +167,7 @@ export async function startOrResumeAttempt({
       difficulty: snapshot.difficultySnapshot,
       type: snapshot.typeSnapshot,
       questionText: snapshot.questionTextSnapshot,
-      explanationText: snapshot.explanationTextSnapshot,
-      options: snapshot.optionsSnapshot,
+      options: snapshot.optionsSnapshot.map(toPracticeOption),
       selectedOptionKeys: snapshot.selectedOptionKeys,
     })),
   };
@@ -193,4 +193,11 @@ function randomShuffle<T>(items: T[]) {
   }
 
   return copy;
+}
+
+function toPracticeOption(option: CanonicalImportQuestionOption) {
+  return {
+    option_key: option.option_key,
+    option_text: option.option_text,
+  };
 }

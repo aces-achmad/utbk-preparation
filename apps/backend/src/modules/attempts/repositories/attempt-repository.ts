@@ -232,16 +232,21 @@ export class AttemptRepository {
     snapshotId: number;
     selectedOptionKeys: string[];
   }) {
-    await this.pool.query(
+    const [result] = await this.pool.query<ResultSetHeader>(
       `INSERT INTO attempt_answers (
         attempt_id,
         attempt_question_snapshot_id,
         selected_option_keys_json
-      ) VALUES (?, ?, ?)
+      )
+      SELECT ?, ?, ?
+      FROM attempts
+      WHERE id = ? AND status = 'active'
       ON DUPLICATE KEY UPDATE
         selected_option_keys_json = VALUES(selected_option_keys_json)`,
-      [input.attemptId, input.snapshotId, JSON.stringify(input.selectedOptionKeys)],
+      [input.attemptId, input.snapshotId, JSON.stringify(input.selectedOptionKeys), input.attemptId],
     );
+
+    return result.affectedRows > 0;
   }
 
   async finalizeAttempt(input: {
@@ -251,7 +256,7 @@ export class AttemptRepository {
     unansweredCount: number;
     scorePercentage: number;
   }) {
-    await this.pool.query(
+    const [result] = await this.pool.query<ResultSetHeader>(
       `UPDATE attempts
        SET
          status = 'submitted',
@@ -270,7 +275,10 @@ export class AttemptRepository {
       ],
     );
 
-    return this.findById(input.attemptId);
+    return {
+      attempt: await this.findById(input.attemptId),
+      updated: result.affectedRows > 0,
+    };
   }
 }
 

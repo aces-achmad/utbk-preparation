@@ -109,6 +109,8 @@ describe("attempt autosave routes", () => {
 
     expect(detailResponse.status).toBe(200);
     expect(detailPayload.data.attempt.id).toBe(started.attempt.id);
+    expect(detailPayload.data.snapshots[0].explanationText).toBeUndefined();
+    expect(detailPayload.data.snapshots[0].options[0].is_correct).toBeUndefined();
 
     const autosaveResponse = await app.request(
       `/api/attempts/${started.attempt.id}/snapshots/${started.snapshots[0]!.snapshotId}/answer`,

@@ -20,11 +20,9 @@ type AttemptData = {
     difficulty: "easy" | "medium" | "hard";
     type: "single_choice" | "multiple_response";
     questionText: string;
-    explanationText: string;
     options: Array<{
       option_key: string;
       option_text: string;
-      is_correct: boolean;
     }>;
     selectedOptionKeys: string[];
   }>;
@@ -562,7 +560,12 @@ function handleBeforeUnload(event: BeforeUnloadEvent) {
                   <strong>{{ option.option_key }}</strong>
                   <p>{{ option.option_text }}</p>
                   <p v-if="result && currentReviewItem" class="body-copy small-copy">
-                    Correct: {{ option.is_correct ? "yes" : "no" }} |
+                    Correct: {{
+                      currentReviewItem.options.find((reviewOption) => reviewOption.option_key === option.option_key)
+                        ?.is_correct
+                        ? "yes"
+                        : "no"
+                    }} |
                     Selected: {{
                       currentReviewItem.options.find((reviewOption) => reviewOption.option_key === option.option_key)
                         ?.selected_by_user

@@ -41,11 +41,15 @@ export async function autosaveAttemptAnswer({
     }
   }
 
-  await repository.upsertAnswer({
+  const didPersist = await repository.upsertAnswer({
     attemptId,
     snapshotId,
     selectedOptionKeys,
   });
+
+  if (!didPersist) {
+    throw new Error("Attempt already submitted; autosave is no longer allowed.");
+  }
 
   logger.info("attempts.autosaved_answer", {
     attemptId,
