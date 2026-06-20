@@ -30,6 +30,10 @@ The core assessment item stored in the question bank. A `Question` includes its 
 
 The explanation attached to a `Question` that helps a student understand why an answer is correct or incorrect.
 
+### Import Session
+
+A single upload-and-review cycle for a canonical JSON payload. An `Import Session` validates, previews, and commits content changes into the question bank while preserving an audit trail.
+
 ### Question Package
 
 A curated set of questions assembled for student practice. A `Question Package` is a reusable container and is distinct from a student's actual work session.
@@ -48,12 +52,4 @@ The evaluated outcome of an `Attempt`, including score, counts of correct and in
 
 ### Admin
 
-A user role responsible for system-level management, including users and global data.
-
-### Editor
-
-A user role responsible for creating, editing, reviewing, and publishing question content.
-
-### Student
-
-A user role responsible for consuming `Question Packages`, completing `Attempts`, and viewing `Results`.
+A single internal user role in v1 that manages content, imports questions, assembles `Question Packages`, completes `Attempts`, and reviews `Results`.

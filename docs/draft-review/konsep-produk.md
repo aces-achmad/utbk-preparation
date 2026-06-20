@@ -13,17 +13,15 @@ Produk tahap awal sebaiknya diposisikan sebagai **bank soal + latihan mandiri**,
 
 ## Sasaran Pengguna
 
-Target utama:
+Target awal:
 
-- siswa kelas 11 dan 12 yang sedang menyiapkan UTBK;
-- pengajar atau admin internal yang menginput dan merapikan soal;
-- reviewer materi yang memeriksa kualitas soal dan pembahasan.
+- satu pengguna internal;
+- dipakai sendiri untuk belajar mandiri;
+- tetap disiapkan agar dapat berkembang ke lebih banyak pengguna internal di masa depan.
 
-Peran pengguna awal yang disarankan:
+Peran pengguna v1:
 
-- `admin`: mengelola user, master data, dan keseluruhan konten;
-- `editor`: membuat dan mengubah soal, pembahasan, kategori, dan paket;
-- `siswa`: mengerjakan latihan dan melihat hasilnya.
+- satu akun `admin` internal yang mengelola konten sekaligus mengerjakan latihan.
 
 ## Nilai Utama Produk
 
@@ -43,18 +41,21 @@ Struktur materi awal yang disarankan:
 - `Literasi Bahasa Inggris`
 - `Penalaran Matematika`
 
-Setiap materi dapat memiliki beberapa level pengelompokan:
+Struktur pengelompokan materi v1:
 
-- `materi utama`
-- `submateri`
-- `topik rinci`
+- `Subject`
+- `Topic`
 
 Contoh:
 
-- `TPS > Penalaran Umum > Analisis Argumen`
-- `Penalaran Matematika > Aljabar > Fungsi`
+- `TPS > Penalaran Umum`
+- `Penalaran Matematika > Aljabar`
 
-Struktur ini penting agar bank soal tidak cepat berantakan ketika jumlah soal bertambah.
+Struktur ini sengaja dibuat ketat agar:
+
+- kontrak import tetap rapi;
+- filter authoring jelas;
+- bank soal tidak cepat berantakan saat jumlah soal bertambah.
 
 ## Bentuk Konten
 
@@ -70,13 +71,16 @@ Unit konten utama:
 
 Jenis soal yang layak didukung pada versi awal:
 
-- pilihan ganda satu jawaban benar;
+- `single_choice`;
+- `multiple_response`;
 - soal berbasis teks;
-- soal dengan gambar pendukung opsional.
+- pembahasan teks biasa.
 
 Jenis soal yang bisa ditunda:
 
-- drag and drop;
+- `true_false` sebagai tipe terpisah;
+- gambar atau media;
+- rich text/markdown;
 - isian numerik kompleks;
 - esai;
 - penilaian adaptif.
@@ -85,43 +89,48 @@ Jenis soal yang bisa ditunda:
 
 Fitur inti versi pertama:
 
-- login sederhana untuk admin/editor/siswa;
+- login minimal satu akun admin internal;
 - manajemen bank soal;
-- manajemen kategori materi;
+- import soal berbasis kontrak JSON internal;
+- manajemen `Subject` dan `Topic`;
 - pembuatan paket latihan dari kumpulan soal;
 - halaman pengerjaan latihan;
 - hasil latihan per sesi;
 - pembahasan setelah latihan selesai.
 
-Fitur admin/editor:
+Fitur authoring/admin:
 
-- tambah, ubah, hapus, dan arsipkan soal;
-- atur status soal: `draft`, `review`, `published`;
+- tambah, ubah, duplikasi, dan arsipkan soal;
+- atur status soal: `draft`, `published`;
 - simpan pembahasan per soal;
+- upload dan review `ImportSession`;
 - susun paket latihan manual.
 
-Fitur siswa:
+Fitur practice:
 
 - melihat daftar paket latihan;
-- mengerjakan latihan satu per satu;
+- resume `Attempt` aktif;
+- mengerjakan latihan satu soal per halaman;
+- autosave jawaban;
 - submit jawaban;
 - melihat skor, jawaban benar/salah, dan pembahasan.
 
 ## Alur Penggunaan
 
-Alur admin/editor:
+Alur authoring:
 
-1. membuat kategori materi;
-2. memasukkan soal dan opsi jawaban;
-3. menambahkan pembahasan dan tingkat kesulitan;
-4. mengubah status soal menjadi siap pakai;
-5. menyusun paket latihan.
+1. menyiapkan file JSON kanonik di luar aplikasi;
+2. mengupload file ke area import;
+3. meninjau hasil preview validasi;
+4. commit import;
+5. melakukan koreksi kecil bila perlu lewat UI;
+6. menyusun paket latihan manual dari soal yang `published`.
 
-Alur siswa:
+Alur practice:
 
 1. login;
 2. memilih paket latihan;
-3. mengerjakan soal;
+3. mengerjakan soal dengan autosave;
 4. submit hasil;
 5. melihat skor dan pembahasan.
 
@@ -130,6 +139,7 @@ Alur siswa:
 Prinsip yang sebaiknya dijaga:
 
 - antarmuka input soal harus sederhana dan cepat;
+- alur import harus menjadi jalur utama masuknya konten;
 - data materi harus konsisten dan mudah difilter;
 - halaman pengerjaan harus fokus, minim distraksi;
 - pembahasan harus mudah dibaca;
@@ -140,6 +150,7 @@ Prinsip yang sebaiknya dijaga:
 Tahap 1:
 
 - autentikasi dasar;
+- import kontrak JSON v1;
 - master materi;
 - CRUD soal;
 - CRUD paket latihan;
@@ -150,8 +161,6 @@ Tahap 2:
 
 - pencarian dan filter soal yang lebih baik;
 - statistik performa per materi;
-- import soal massal;
-- upload gambar untuk soal;
 - randomisasi urutan soal dan opsi.
 
 Tahap 3:
@@ -164,20 +173,21 @@ Tahap 3:
 
 Hal yang perlu diputuskan sejak awal:
 
-- apakah fokus hanya bank soal internal atau juga portal siswa publik;
-- apakah pembahasan mendukung format rich text penuh;
-- apakah soal perlu mendukung gambar dan rumus matematika sejak versi pertama;
-- apakah paket latihan bersifat statis atau bisa dirakit otomatis dari filter materi;
-- apakah ada kebutuhan multi-tenant atau cukup satu institusi.
+- bentuk final kontrak JSON v1;
+- cara snapshot runtime `Attempt` akan disimpan;
+- cara invalidasi package dijalankan secara konsisten;
+- batas editor web minimal dibanding jalur import;
+- detail keamanan operasional saat aplikasi diakses lewat jaringan internal.
 
 ## Rekomendasi Arah Versi Pertama
 
 Untuk versi pertama, arah yang paling aman:
 
-- satu aplikasi web untuk admin/editor dan siswa;
-- soal pilihan ganda standar;
-- pembahasan teks dengan dukungan gambar opsional;
+- satu aplikasi web internal dengan satu akun admin;
+- `single_choice` dan `multiple_response`;
+- pembahasan plain text;
 - paket latihan manual;
+- import-first dengan editor web minimal;
 - laporan hasil per sesi latihan;
 - fokus pada kestabilan data dan alur kerja konten.
 

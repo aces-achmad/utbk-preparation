@@ -10,6 +10,8 @@ Target teknis versi awal:
 - backend API terpisah dari frontend;
 - database MySQL untuk data utama;
 - validasi input yang konsisten;
+- login minimal berbasis cookie session;
+- import-first workflow dengan kontrak JSON internal yang ketat;
 - deployment lokal/dev melalui Docker Compose tanpa perlu build image custom pada tahap awal.
 
 ## Stack yang Digunakan
@@ -88,9 +90,10 @@ Tanggung jawab backend:
 - autentikasi dan otorisasi;
 - CRUD master materi;
 - CRUD soal;
+- import session, preview, dan commit;
 - CRUD paket latihan;
 - penyimpanan hasil pengerjaan;
-- penyajian data untuk halaman siswa.
+- penyajian data untuk area practice dan review hasil.
 
 Lapisan backend yang disarankan:
 
@@ -104,10 +107,10 @@ Lapisan backend yang disarankan:
 Contoh area modul:
 
 - `auth`
-- `users`
 - `subjects`
 - `topics`
 - `questions`
+- `imports`
 - `question-packages`
 - `attempts`
 - `results`
@@ -116,9 +119,11 @@ Contoh area modul:
 
 Tanggung jawab frontend:
 
-- autentikasi user;
-- dashboard sesuai peran;
-- form admin/editor untuk input soal;
+- autentikasi admin tunggal;
+- area authoring;
+- area practice;
+- form import dan review hasil import;
+- form admin untuk input/koreksi soal;
 - halaman daftar dan filter paket latihan;
 - halaman pengerjaan latihan;
 - halaman hasil dan pembahasan.
@@ -151,16 +156,17 @@ Tailwind CSS dipakai untuk:
 
 Entitas inti yang disarankan:
 
-- `users`
-- `roles`
+- `admin_users`
+- `auth_sessions`
 - `subjects`
 - `topics`
+- `import_sessions`
 - `questions`
 - `question_options`
-- `question_explanations`
 - `question_packages`
 - `question_package_items`
 - `attempts`
+- `attempt_question_snapshots`
 - `attempt_answers`
 
 Gambaran relasi:
@@ -168,10 +174,11 @@ Gambaran relasi:
 - satu `subject` punya banyak `topics`;
 - satu `topic` punya banyak `questions`;
 - satu `question` punya banyak `question_options`;
-- satu `question` bisa punya satu `question_explanation`;
+- satu `import_session` dapat memengaruhi banyak `questions`;
 - satu `question_package` punya banyak item soal;
-- satu `attempt` milik satu user dan satu package;
-- satu `attempt` punya banyak `attempt_answers`.
+- satu `attempt` milik satu package;
+- satu `attempt` punya banyak `attempt_question_snapshots`;
+- satu `attempt_question_snapshot` punya nol atau satu `attempt_answer`.
 
 Kolom penting pada `questions`:
 
@@ -179,53 +186,54 @@ Kolom penting pada `questions`:
 - `topic_id`
 - `type`
 - `question_text`
-- `difficulty_level`
-- `source_name`
+- `explanation_text`
+- `difficulty`
+- `source`
 - `status`
-- `created_by`
+- `is_archived`
+- `last_import_session_id`
 - `created_at`
 - `updated_at`
 
 Kolom penting pada `attempts`:
 
 - `id`
-- `user_id`
 - `package_id`
+- `status`
 - `started_at`
 - `submitted_at`
-- `score`
+- `score_percentage`
 - `total_questions`
-- `correct_answers`
+- `correct_count`
+- `incorrect_count`
+- `unanswered_count`
 
 ## Status Data yang Perlu Disiapkan
 
 Status soal:
 
 - `draft`
-- `review`
 - `published`
-- `archived`
 
 Status attempt:
 
-- `in_progress`
+- `active`
 - `submitted`
-- `evaluated`
-
-Peran user:
-
-- `admin`
-- `editor`
-- `student`
 
 ## Pola API Awal
 
 Gaya API cukup REST sederhana:
 
 - `POST /auth/login`
+- `POST /auth/logout`
+- `POST /auth/change-password`
 - `GET /subjects`
 - `POST /subjects`
 - `GET /topics`
+- `POST /imports/preview`
+- `POST /imports/:id/commit`
+- `GET /imports`
+- `GET /imports/:id`
 - `POST /questions`
 - `GET /questions`
 - `GET /questions/:id`
@@ -281,19 +289,15 @@ Praktik yang disarankan:
 
 ## Autentikasi
 
-Untuk versi awal, cukup sederhana:
+Untuk versi awal:
 
-- login email/username + password;
-- session token atau JWT;
-- route guard berdasarkan role.
+- login `username + password`;
+- satu akun admin internal;
+- session berbasis cookie;
+- route guard sederhana untuk memastikan hanya sesi valid yang dapat mengakses authoring dan practice;
+- simpan password dengan hash yang aman.
 
-Pilihan pragmatis:
-
-- gunakan JWT access token sederhana untuk SPA;
-- simpan password dengan hash yang aman;
-- middleware Hono untuk autentikasi dan role check.
-
-Jika ingin paling sederhana saat awal, autentikasi internal basic sudah cukup. OAuth belum perlu.
+OAuth, JWT, dan multi-role belum perlu pada v1.
 
 ## Deployment Lokal dengan Docker
 
@@ -324,8 +328,10 @@ Backend:
 
 - `APP_PORT`
 - `DATABASE_URL`
-- `JWT_SECRET`
+- `SESSION_SECRET`
 - `CORS_ORIGIN`
+- `ADMIN_USERNAME`
+- `ADMIN_PASSWORD`
 
 Frontend:
 
@@ -361,11 +367,11 @@ Belum perlu di awal:
 Hal yang perlu diputuskan sebelum implementasi:
 
 - apakah frontend dan backend akan benar-benar dipisah app-nya;
-- apakah editor soal perlu rich text editor;
-- apakah rumus matematika butuh dukungan MathJax/KaTeX;
-- apakah file gambar disimpan di local volume atau object storage;
-- apakah package latihan perlu randomisasi per attempt;
-- apakah sistem hasil perlu autosave jawaban.
+- bentuk final kontrak JSON v1 untuk implementasi validator;
+- bentuk penyimpanan snapshot runtime attempt;
+- mekanisme invalidasi package yang konsisten saat import dan edit manual;
+- detail session cookie dan hardening akses jaringan internal;
+- batas operasional editor web minimal dibanding jalur import utama.
 
 Keputusan-keputusan ini akan memengaruhi struktur tabel, API, dan kompleksitas UI.
 
@@ -379,9 +385,10 @@ Urutan pengerjaan teknis yang disarankan:
 4. buat migrasi tabel inti;
 5. siapkan frontend Vue + PrimeVue + Tailwind + Pinia;
 6. implementasikan autentikasi dasar;
-7. implementasikan master materi dan CRUD soal;
-8. implementasikan paket latihan;
-9. implementasikan attempt dan hasil latihan.
+7. implementasikan `ImportSession` dan validator kontrak JSON;
+8. implementasikan master materi dan CRUD soal;
+9. implementasikan paket latihan;
+10. implementasikan attempt, autosave, snapshot runtime, dan hasil latihan.
 
 ## Kesimpulan
 
