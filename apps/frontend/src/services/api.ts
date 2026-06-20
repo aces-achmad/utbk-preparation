@@ -3,13 +3,16 @@ import type { ApiEnvelope } from "@utbk/shared/api";
 import { appEnv } from "../lib/env";
 
 export async function apiFetch<TData>(input: string, init?: RequestInit) {
+  const isFormData = init?.body instanceof FormData;
   const response = await fetch(`${appEnv.VITE_API_BASE_PATH}${input}`, {
     credentials: "include",
     ...init,
-    headers: {
-      "content-type": "application/json",
-      ...(init?.headers ?? {}),
-    },
+    headers: isFormData
+      ? init?.headers
+      : {
+          "content-type": "application/json",
+          ...(init?.headers ?? {}),
+        },
   });
 
   const payload = (await response.json()) as ApiEnvelope<TData>;

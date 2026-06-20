@@ -22,6 +22,8 @@ export async function resetDatabase() {
   const pool = await getTestPool();
 
   await pool.query("SET FOREIGN_KEY_CHECKS = 0");
+  await pool.query("TRUNCATE TABLE import_sessions");
+  await pool.query("TRUNCATE TABLE questions");
   await pool.query("TRUNCATE TABLE auth_sessions");
   await pool.query("TRUNCATE TABLE admin_users");
   await pool.query("TRUNCATE TABLE test_probe_records");

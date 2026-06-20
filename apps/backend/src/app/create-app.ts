@@ -11,6 +11,7 @@ import type { SessionRecord } from "../modules/auth/repositories/session-reposit
 import { changeAdminPassword } from "../modules/auth/services/change-admin-password";
 import { loginAdmin } from "../modules/auth/services/login-admin";
 import { logoutAdmin } from "../modules/auth/services/logout-admin";
+import { previewImport } from "../modules/imports/services/preview-import";
 
 type CreateAppOptions = {
   logger: Logger;
@@ -182,6 +183,44 @@ export function createApp({ logger, pool }: CreateAppOptions) {
       },
     }),
   );
+
+  app.post("/api/imports/preview", requireSession({ pool }), async (c) => {
+    const session = c.get("session") as SessionRecord;
+    const body = await c.req.parseBody();
+    const uploadedFile = body.file;
+
+    if (!(uploadedFile instanceof File)) {
+      return c.json(
+        {
+          success: false,
+          message: "Import preview requires a JSON file upload.",
+          data: null,
+        },
+        400,
+      );
+    }
+
+    const rawPayload = await uploadedFile.text();
+    const result = await previewImport({
+      pool: pool!,
+      logger,
+      adminUserId: session.admin_user_id,
+      originalFilename: uploadedFile.name,
+      rawPayload,
+    });
+
+    return c.json({
+      success: true,
+      message: "Import preview created.",
+      data: {
+        importSessionId: result.importSessionId,
+        status: result.status,
+        summary: result.summary,
+        errors: result.errors,
+        requiresReconfirmation: result.summary.sensitiveUpdateCount > 0,
+      },
+    });
+  });
 
   return app;
 }

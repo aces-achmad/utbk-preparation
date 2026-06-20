@@ -21,6 +21,10 @@ const routes = [
         path: "",
         component: () => import("../modules/practice/HomeView.vue"),
       },
+      {
+        path: "imports",
+        component: () => import("../modules/imports/ImportPreviewView.vue"),
+      },
     ],
   },
 ];

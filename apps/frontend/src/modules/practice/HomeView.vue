@@ -13,15 +13,19 @@ async function handleLogout() {
 </script>
 
 <template>
-  <main class="app-shell">
-    <section class="hero-card">
+  <main class="workspace-shell">
+    <section class="hero-card workspace-card">
       <p class="eyebrow">UTBK Preparation</p>
       <h1>Authenticated shell is ready.</h1>
       <p class="body-copy">
-        The application shell is now protected by backend session validation. Feature modules can be added under this route tree.
+        Session auth aktif. Modul authoring dan practice berikutnya bisa tumbuh di atas shell ini.
       </p>
+
+      <nav class="workspace-nav">
+        <RouterLink class="workspace-link" to="/imports">Open import preview</RouterLink>
+      </nav>
+
       <button class="primary-button inline-action" @click="handleLogout">Logout</button>
     </section>
   </main>
 </template>
-
