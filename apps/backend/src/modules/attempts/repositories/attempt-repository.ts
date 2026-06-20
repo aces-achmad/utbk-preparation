@@ -9,6 +9,10 @@ export type AttemptRecord = {
   questionCount: number;
   startedAt: string;
   submittedAt: string | null;
+  correctCount: number | null;
+  incorrectCount: number | null;
+  unansweredCount: number | null;
+  scorePercentage: number | null;
 };
 
 export type AttemptQuestionSnapshotRecord = {
@@ -34,6 +38,10 @@ type AttemptRow = RowDataPacket & {
   question_count: number;
   started_at: string;
   submitted_at: string | null;
+  correct_count: number | null;
+  incorrect_count: number | null;
+  unanswered_count: number | null;
+  score_percentage: string | number | null;
 };
 
 type AttemptQuestionSnapshotRow = RowDataPacket & {
@@ -57,7 +65,17 @@ export class AttemptRepository {
 
   async findActiveByPackageSlug(packageSlug: string) {
     const [rows] = await this.pool.query<AttemptRow[]>(
-      `SELECT id, package_slug, status, question_count, started_at, submitted_at
+      `SELECT
+         id,
+         package_slug,
+         status,
+         question_count,
+         started_at,
+         submitted_at,
+         correct_count,
+         incorrect_count,
+         unanswered_count,
+         score_percentage
        FROM attempts
        WHERE package_slug = ? AND status = 'active'
        ORDER BY id DESC
@@ -70,7 +88,17 @@ export class AttemptRepository {
 
   async findById(id: number) {
     const [rows] = await this.pool.query<AttemptRow[]>(
-      `SELECT id, package_slug, status, question_count, started_at, submitted_at
+      `SELECT
+         id,
+         package_slug,
+         status,
+         question_count,
+         started_at,
+         submitted_at,
+         correct_count,
+         incorrect_count,
+         unanswered_count,
+         score_percentage
        FROM attempts
        WHERE id = ?`,
       [id],
@@ -215,6 +243,35 @@ export class AttemptRepository {
       [input.attemptId, input.snapshotId, JSON.stringify(input.selectedOptionKeys)],
     );
   }
+
+  async finalizeAttempt(input: {
+    attemptId: number;
+    correctCount: number;
+    incorrectCount: number;
+    unansweredCount: number;
+    scorePercentage: number;
+  }) {
+    await this.pool.query(
+      `UPDATE attempts
+       SET
+         status = 'submitted',
+         submitted_at = COALESCE(submitted_at, CURRENT_TIMESTAMP),
+         correct_count = ?,
+         incorrect_count = ?,
+         unanswered_count = ?,
+         score_percentage = ?
+       WHERE id = ?`,
+      [
+        input.correctCount,
+        input.incorrectCount,
+        input.unansweredCount,
+        input.scorePercentage,
+        input.attemptId,
+      ],
+    );
+
+    return this.findById(input.attemptId);
+  }
 }
 
 function mapAttemptRow(row: AttemptRow): AttemptRecord {
@@ -225,6 +282,11 @@ function mapAttemptRow(row: AttemptRow): AttemptRecord {
     questionCount: row.question_count,
     startedAt: row.started_at,
     submittedAt: row.submitted_at,
+    correctCount: row.correct_count,
+    incorrectCount: row.incorrect_count,
+    unansweredCount: row.unanswered_count,
+    scorePercentage:
+      row.score_percentage === null ? null : Number(row.score_percentage),
   };
 }
 

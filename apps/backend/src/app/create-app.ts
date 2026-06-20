@@ -15,6 +15,8 @@ import { previewImport } from "../modules/imports/services/preview-import";
 import { startOrResumeAttempt } from "../modules/attempts/services/start-or-resume-attempt";
 import { autosaveAttemptAnswer } from "../modules/attempts/services/autosave-attempt-answer";
 import { getAttemptDetail } from "../modules/attempts/services/get-attempt-detail";
+import { getAttemptResult } from "../modules/attempts/services/get-attempt-result";
+import { submitAttempt } from "../modules/attempts/services/submit-attempt";
 import {
   archiveQuestion,
   bulkQuestionAction,
@@ -667,6 +669,33 @@ export function createApp({ logger, pool }: CreateAppOptions) {
     },
   );
 
+  app.post("/api/attempts/:attemptId/submit", requireSession({ pool }), async (c) => {
+    const attemptId = Number(c.req.param("attemptId"));
+    const result = await submitAttempt({
+      pool: pool!,
+      logger,
+      attemptId,
+    });
+
+    return c.json({
+      success: true,
+      data: result,
+    });
+  });
+
+  app.get("/api/attempts/:attemptId/result", requireSession({ pool }), async (c) => {
+    const attemptId = Number(c.req.param("attemptId"));
+    const result = await getAttemptResult({
+      pool: pool!,
+      attemptId,
+    });
+
+    return c.json({
+      success: true,
+      data: result,
+    });
+  });
+
   return app;
 }
 
@@ -683,7 +712,8 @@ function classifyErrorStatus(error: Error) {
     message.includes("cannot be archived") ||
     message.includes("invalid credentials") ||
     message.includes("authentication required") ||
-    message.includes("already exists")
+    message.includes("already exists") ||
+    message.includes("has not been submitted yet")
   ) {
     return 400;
   }

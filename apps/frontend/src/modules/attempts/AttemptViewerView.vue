@@ -30,6 +30,44 @@ type AttemptData = {
   }>;
 };
 
+type AttemptResultData = {
+  attempt: {
+    id: number;
+    packageSlug: string;
+    status: "active" | "submitted";
+    questionCount: number;
+    submittedAt: string | null;
+  };
+  summary: {
+    totalQuestions: number;
+    correctCount: number;
+    incorrectCount: number;
+    unansweredCount: number;
+    scorePercentage: number;
+  };
+  review: Array<{
+    snapshotId: number;
+    questionOrder: number;
+    questionExternalId: string;
+    subjectLabel: string | null;
+    topicLabel: string | null;
+    difficulty: "easy" | "medium" | "hard";
+    type: "single_choice" | "multiple_response";
+    questionText: string;
+    explanationText: string;
+    selectedOptionKeys: string[];
+    correctOptionKeys: string[];
+    isAnswered: boolean;
+    isCorrect: boolean;
+    options: Array<{
+      option_key: string;
+      option_text: string;
+      is_correct: boolean;
+      selected_by_user: boolean;
+    }>;
+  }>;
+};
+
 type AttemptPayload = AttemptData & {
   mode?: "started" | "resumed";
 };
@@ -49,7 +87,9 @@ const attempt = ref<AttemptData | null>(
 );
 const currentIndex = ref(0);
 const isLoading = ref(false);
+const isSubmitting = ref(false);
 const errorMessage = ref("");
+const result = ref<AttemptResultData | null>(null);
 const syncStates = ref<Record<number, SyncState>>({});
 const localSelections = ref<Record<number, string[]>>({});
 const dirtySnapshotIds = ref<Record<number, true>>({});
@@ -57,6 +97,7 @@ const debounceTimers = new Map<number, ReturnType<typeof setTimeout>>();
 const saveRequestTokens = new Map<number, number>();
 
 const currentSnapshot = computed(() => attempt.value?.snapshots[currentIndex.value] ?? null);
+const currentReviewItem = computed(() => result.value?.review[currentIndex.value] ?? null);
 const currentSnapshotId = computed(() => currentSnapshot.value?.snapshotId ?? null);
 const answeredCount = computed(
   () =>
@@ -81,6 +122,10 @@ const currentSyncState = computed(() => {
   return syncStates.value[snapshotId] ?? "idle";
 });
 const currentSelection = computed(() => {
+  if (result.value && currentReviewItem.value) {
+    return currentReviewItem.value.selectedOptionKeys;
+  }
+
   const snapshot = currentSnapshot.value;
 
   if (!snapshot) {
@@ -88,6 +133,44 @@ const currentSelection = computed(() => {
   }
 
   return localSelections.value[snapshot.snapshotId] ?? [];
+});
+const submitDisabled = computed(
+  () =>
+    isLoading.value ||
+    isSubmitting.value ||
+    !attempt.value ||
+    attempt.value.attempt.status === "submitted" ||
+    hasUnsyncedChanges.value,
+);
+const summaryCards = computed(() => {
+  if (result.value) {
+    return {
+      answered: result.value.summary.totalQuestions - result.value.summary.unansweredCount,
+      unanswered: result.value.summary.unansweredCount,
+      correct: result.value.summary.correctCount,
+      incorrect: result.value.summary.incorrectCount,
+      percentage: result.value.summary.scorePercentage,
+    };
+  }
+
+  return {
+    answered: answeredCount.value,
+    unanswered: unansweredCount.value,
+    correct: null,
+    incorrect: null,
+    percentage: null,
+  };
+});
+const currentQuestionState = computed(() => {
+  if (!currentReviewItem.value) {
+    return null;
+  }
+
+  if (!currentReviewItem.value.isAnswered) {
+    return "unanswered";
+  }
+
+  return currentReviewItem.value.isCorrect ? "correct" : "incorrect";
 });
 
 onMounted(async () => {
@@ -135,11 +218,22 @@ async function loadAttempt() {
       response.data.snapshots.map((snapshot) => [snapshot.snapshotId, "saved" satisfies SyncState]),
     );
     dirtySnapshotIds.value = {};
+
+    if (response.data.attempt.status === "submitted") {
+      await loadResult(attemptId);
+    } else {
+      result.value = null;
+    }
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : "Gagal memuat attempt.";
   } finally {
     isLoading.value = false;
   }
+}
+
+async function loadResult(attemptId: number) {
+  const response = await apiFetch<AttemptResultData>(`/attempts/${attemptId}/result`);
+  result.value = response.data;
 }
 
 function goNext() {
@@ -163,6 +257,10 @@ function jumpTo(index: number) {
 }
 
 function handleSingleChoiceChange(optionKey: string) {
+  if (attempt.value?.attempt.status === "submitted") {
+    return;
+  }
+
   const snapshot = currentSnapshot.value;
 
   if (!snapshot) {
@@ -173,6 +271,10 @@ function handleSingleChoiceChange(optionKey: string) {
 }
 
 function handleMultipleResponseToggle(optionKey: string, checked: boolean) {
+  if (attempt.value?.attempt.status === "submitted") {
+    return;
+  }
+
   const snapshot = currentSnapshot.value;
 
   if (!snapshot) {
@@ -300,6 +402,48 @@ function retryCurrentSnapshot() {
   void persistSnapshotAnswer(snapshotId);
 }
 
+async function handleSubmitAttempt() {
+  if (!attempt.value || submitDisabled.value) {
+    return;
+  }
+
+  if (unansweredCount.value > 0) {
+    const confirmed = window.confirm(
+      `${unansweredCount.value} soal masih kosong dan akan dihitung salah. Submit sekarang?`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+  }
+
+  isSubmitting.value = true;
+  errorMessage.value = "";
+
+  try {
+    const response = await apiFetch<AttemptResultData>(`/attempts/${attempt.value.attempt.id}/submit`, {
+      method: "POST",
+    });
+
+    result.value = response.data;
+    attempt.value = {
+      ...attempt.value,
+      attempt: {
+        ...attempt.value.attempt,
+        status: "submitted",
+      },
+    };
+    dirtySnapshotIds.value = {};
+    syncStates.value = Object.fromEntries(
+      attempt.value.snapshots.map((snapshot) => [snapshot.snapshotId, "saved" satisfies SyncState]),
+    );
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : "Submit attempt gagal.";
+  } finally {
+    isSubmitting.value = false;
+  }
+}
+
 function snapshotSelectionStatus(snapshotId: number) {
   const state = syncStates.value[snapshotId] ?? "idle";
 
@@ -343,9 +487,12 @@ function handleBeforeUnload(event: BeforeUnloadEvent) {
           <div class="section-head">
             <h2>Progress</h2>
             <div class="question-badges">
-              <span class="pill">Answered: {{ answeredCount }}</span>
-              <span class="pill">Unanswered: {{ unansweredCount }}</span>
+              <span class="pill">Answered: {{ summaryCards.answered }}</span>
+              <span class="pill">Unanswered: {{ summaryCards.unanswered }}</span>
               <span class="pill">Sync: {{ currentSyncState }}</span>
+              <span v-if="summaryCards.correct !== null" class="pill">Correct: {{ summaryCards.correct }}</span>
+              <span v-if="summaryCards.incorrect !== null" class="pill">Incorrect: {{ summaryCards.incorrect }}</span>
+              <span v-if="summaryCards.percentage !== null" class="pill">Score: {{ summaryCards.percentage }}%</span>
             </div>
           </div>
 
@@ -359,6 +506,12 @@ function handleBeforeUnload(event: BeforeUnloadEvent) {
                 answered: snapshotSelectionStatus(snapshot.snapshotId) === 'answered',
                 saving: snapshotSelectionStatus(snapshot.snapshotId) === 'saving',
                 error: snapshotSelectionStatus(snapshot.snapshotId) === 'error',
+                reviewCorrect:
+                  result?.review[index]?.isAnswered && result.review[index]?.isCorrect,
+                reviewIncorrect:
+                  result?.review[index]?.isAnswered && !result.review[index]?.isCorrect,
+                reviewUnanswered:
+                  result?.review[index] && !result.review[index]?.isAnswered,
               }"
               @click="jumpTo(index)"
             >
@@ -373,6 +526,7 @@ function handleBeforeUnload(event: BeforeUnloadEvent) {
             <div class="question-badges">
               <span class="pill">{{ currentSnapshot.difficulty }}</span>
               <span class="pill">{{ currentSnapshot.type }}</span>
+              <span v-if="currentQuestionState" class="pill">{{ currentQuestionState }}</span>
             </div>
           </div>
 
@@ -389,12 +543,14 @@ function handleBeforeUnload(event: BeforeUnloadEvent) {
                   type="radio"
                   :name="`snapshot-${currentSnapshot.snapshotId}`"
                   :checked="currentSelection.includes(option.option_key)"
+                  :disabled="attempt.attempt.status === 'submitted'"
                   @change="handleSingleChoiceChange(option.option_key)"
                 />
                 <input
                   v-else
                   type="checkbox"
                   :checked="currentSelection.includes(option.option_key)"
+                  :disabled="attempt.attempt.status === 'submitted'"
                   @change="
                     handleMultipleResponseToggle(
                       option.option_key,
@@ -405,10 +561,33 @@ function handleBeforeUnload(event: BeforeUnloadEvent) {
                 <div>
                   <strong>{{ option.option_key }}</strong>
                   <p>{{ option.option_text }}</p>
+                  <p v-if="result && currentReviewItem" class="body-copy small-copy">
+                    Correct: {{ option.is_correct ? "yes" : "no" }} |
+                    Selected: {{
+                      currentReviewItem.options.find((reviewOption) => reviewOption.option_key === option.option_key)
+                        ?.selected_by_user
+                        ? "yes"
+                        : "no"
+                    }}
+                  </p>
                 </div>
               </label>
             </li>
           </ul>
+
+          <div v-if="result && currentReviewItem" class="panel-card">
+            <div class="section-head">
+              <h2>Review</h2>
+              <span class="pill">{{ currentQuestionState }}</span>
+            </div>
+            <p class="body-copy small-copy">
+              Selected: <code>{{ currentReviewItem.selectedOptionKeys.join(", ") || "-" }}</code>
+            </p>
+            <p class="body-copy small-copy">
+              Correct: <code>{{ currentReviewItem.correctOptionKeys.join(", ") || "-" }}</code>
+            </p>
+            <p class="body-copy">{{ currentReviewItem.explanationText }}</p>
+          </div>
 
           <div class="sync-row">
             <p class="body-copy small-copy">
@@ -421,6 +600,14 @@ function handleBeforeUnload(event: BeforeUnloadEvent) {
               @click="retryCurrentSnapshot"
             >
               Retry save
+            </button>
+            <button
+              class="primary-button"
+              type="button"
+              :disabled="submitDisabled"
+              @click="handleSubmitAttempt"
+            >
+              {{ isSubmitting ? "Submitting..." : attempt.attempt.status === "submitted" ? "Submitted" : "Submit attempt" }}
             </button>
           </div>
         </section>
