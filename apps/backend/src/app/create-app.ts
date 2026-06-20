@@ -21,6 +21,16 @@ import {
   publishQuestion,
   updateQuestion,
 } from "../modules/questions/services/question-authoring";
+import {
+  archivePackage,
+  createPackage,
+  duplicatePackage,
+  listAvailablePackagesForPractice,
+  listPackages,
+  publishPackage,
+  setPackageComposition,
+  updatePackageMetadata,
+} from "../modules/packages/services/package-authoring";
 import { archiveSubject, createSubject, listSubjects, updateSubject } from "../modules/subjects/services/subject-authoring";
 import { archiveTopic, createTopic, listTopics, updateTopic } from "../modules/topics/services/topic-authoring";
 
@@ -73,6 +83,18 @@ export function createApp({ logger, pool }: CreateAppOptions) {
   const bulkQuestionSchema = z.object({
     action: z.enum(["publish", "archive", "draft"]),
     externalIds: z.array(z.string().trim().min(1)).min(1),
+  });
+  const packageSchema = z.object({
+    slug: z.string().trim().min(1),
+    name: z.string().trim().min(1),
+    description: z.string().trim().optional().nullable(),
+  });
+  const packageMetadataSchema = packageSchema.omit({ slug: true });
+  const packageCompositionSchema = z.object({
+    questionExternalIds: z.array(z.string().trim().min(1)),
+  });
+  const duplicatePackageSchema = z.object({
+    newSlug: z.string().trim().min(1),
   });
   const questionListQuerySchema = z.object({
     page: z.coerce.number().int().positive().default(1),
@@ -482,6 +504,108 @@ export function createApp({ logger, pool }: CreateAppOptions) {
     return c.json({
       success: true,
       data: result,
+    });
+  });
+
+  app.get("/api/packages", requireSession({ pool }), async (c) =>
+    c.json({
+      success: true,
+      data: await listPackages(pool!),
+    }),
+  );
+
+  app.get("/api/packages/available-for-practice", requireSession({ pool }), async (c) =>
+    c.json({
+      success: true,
+      data: await listAvailablePackagesForPractice(pool!),
+    }),
+  );
+
+  app.post("/api/packages", requireSession({ pool }), async (c) => {
+    const payload = packageSchema.parse(await c.req.json());
+    const record = await createPackage({
+      pool: pool!,
+      logger,
+      slug: payload.slug,
+      name: payload.name,
+      description: payload.description,
+    });
+
+    return c.json({
+      success: true,
+      data: record,
+    });
+  });
+
+  app.patch("/api/packages/:slug", requireSession({ pool }), async (c) => {
+    const payload = packageMetadataSchema.parse(await c.req.json());
+    const record = await updatePackageMetadata({
+      pool: pool!,
+      logger,
+      slug: c.req.param("slug"),
+      name: payload.name,
+      description: payload.description,
+    });
+
+    return c.json({
+      success: true,
+      data: record,
+    });
+  });
+
+  app.put("/api/packages/:slug/composition", requireSession({ pool }), async (c) => {
+    const payload = packageCompositionSchema.parse(await c.req.json());
+    const record = await setPackageComposition({
+      pool: pool!,
+      logger,
+      slug: c.req.param("slug"),
+      questionExternalIds: payload.questionExternalIds,
+    });
+
+    return c.json({
+      success: true,
+      data: record,
+    });
+  });
+
+  app.post("/api/packages/:slug/publish", requireSession({ pool }), async (c) => {
+    const record = await publishPackage({
+      pool: pool!,
+      logger,
+      slug: c.req.param("slug"),
+    });
+
+    return c.json({
+      success: true,
+      data: record,
+    });
+  });
+
+  app.post("/api/packages/:slug/archive", requireSession({ pool }), async (c) => {
+    const record = await archivePackage({
+      pool: pool!,
+      logger,
+      slug: c.req.param("slug"),
+    });
+
+    return c.json({
+      success: true,
+      data: record,
+    });
+  });
+
+  app.post("/api/packages/:slug/duplicate", requireSession({ pool }), async (c) => {
+    const payload = duplicatePackageSchema.parse(await c.req.json());
+    const record = await duplicatePackage({
+      pool: pool!,
+      logger,
+      slug: c.req.param("slug"),
+      newSlug: payload.newSlug,
+    });
+
+    return c.json({
+      success: true,
+      data: record,
     });
   });
 

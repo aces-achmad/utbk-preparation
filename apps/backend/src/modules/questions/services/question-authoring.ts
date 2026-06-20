@@ -5,6 +5,7 @@ import type { Pool } from "mysql2/promise";
 import type { CanonicalImportQuestionOption } from "@utbk/shared/imports";
 
 import type { Logger } from "../../../lib/logger";
+import { syncPackageInvalidationByQuestion } from "../../packages/services/package-authoring";
 import { TopicRepository } from "../../topics/repositories/topic-repository";
 import {
   QuestionAuthoringRepository,
@@ -62,6 +63,14 @@ export async function createQuestion({
     status,
   });
 
+  if (question) {
+    await syncPackageInvalidationByQuestion({
+      pool,
+      logger,
+      questionExternalId: question.externalId,
+    });
+  }
+
   return question;
 }
 
@@ -104,6 +113,13 @@ export async function updateQuestion({
   });
 
   logger.info("questions.updated", { externalId, status });
+
+  await syncPackageInvalidationByQuestion({
+    pool,
+    logger,
+    questionExternalId: externalId,
+  });
+
   return question;
 }
 
@@ -136,6 +152,13 @@ export async function archiveQuestion({
   });
 
   logger.info("questions.archived", { externalId });
+
+  await syncPackageInvalidationByQuestion({
+    pool,
+    logger,
+    questionExternalId: externalId,
+  });
+
   return question;
 }
 
@@ -171,6 +194,14 @@ export async function duplicateQuestion({
     sourceExternalId: externalId,
     duplicatedExternalId: duplicated?.externalId,
   });
+
+  if (duplicated) {
+    await syncPackageInvalidationByQuestion({
+      pool,
+      logger,
+      questionExternalId: duplicated.externalId,
+    });
+  }
 
   return duplicated;
 }
@@ -214,6 +245,13 @@ export async function publishQuestion({
   });
 
   logger.info("questions.published", { externalId });
+
+  await syncPackageInvalidationByQuestion({
+    pool,
+    logger,
+    questionExternalId: externalId,
+  });
+
   return question;
 }
 
@@ -285,6 +323,12 @@ async function setQuestionDraft({
   });
 
   logger.info("questions.set_draft", { externalId });
+
+  await syncPackageInvalidationByQuestion({
+    pool,
+    logger,
+    questionExternalId: externalId,
+  });
 }
 
 async function assertTopicUsable(pool: Pool, topicSlug: string) {

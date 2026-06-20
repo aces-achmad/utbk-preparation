@@ -24,6 +24,7 @@ async function handleLogout() {
       <nav class="workspace-nav">
         <RouterLink class="workspace-link" to="/imports">Open import preview</RouterLink>
         <RouterLink class="workspace-link" to="/questions">Open question bank</RouterLink>
+        <RouterLink class="workspace-link" to="/packages">Open package workbench</RouterLink>
       </nav>
 
       <button class="primary-button inline-action" @click="handleLogout">Logout</button>

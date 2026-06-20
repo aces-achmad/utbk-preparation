@@ -209,6 +209,10 @@ code {
   background: rgba(255, 255, 255, 0.72);
 }
 
+.inset-panel {
+  margin-top: 0;
+}
+
 .panel-card h2,
 .panel-card h3 {
   margin: 0;
@@ -355,6 +359,16 @@ code {
   background: rgba(13, 107, 91, 0.08);
   color: var(--accent);
   font-size: 0.85rem;
+}
+
+.pill-danger {
+  background: rgba(164, 42, 42, 0.12);
+  color: #a42a2a;
+}
+
+.pill-muted {
+  background: rgba(106, 95, 82, 0.12);
+  color: var(--muted);
 }
 
 .small-copy {

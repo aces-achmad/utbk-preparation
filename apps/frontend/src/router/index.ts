@@ -29,6 +29,10 @@ const routes = [
         path: "questions",
         component: () => import("../modules/questions/QuestionWorkbenchView.vue"),
       },
+      {
+        path: "packages",
+        component: () => import("../modules/packages/PackageWorkbenchView.vue"),
+      },
     ],
   },
 ];
