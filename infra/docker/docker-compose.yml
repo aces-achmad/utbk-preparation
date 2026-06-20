@@ -1,0 +1,68 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: utbk-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+
+  mysql_test:
+    image: mysql:8.4
+    container_name: utbk-mysql-test
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: utbk_preparation_test
+      MYSQL_USER: utbk_test
+      MYSQL_PASSWORD: utbk_test_password
+      MYSQL_ROOT_PASSWORD: utbk_test_root_password
+    ports:
+      - "3307:3306"
+    tmpfs:
+      - /var/lib/mysql
+
+  backend:
+    image: oven/bun:1
+    container_name: utbk-backend
+    working_dir: /workspace
+    command: >
+      sh -lc "bun install && bun --cwd apps/backend run dev"
+    environment:
+      APP_PORT: 3000
+      APP_ORIGIN: http://localhost:3000
+      DATABASE_URL: mysql://${MYSQL_USER}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE}
+      SESSION_SECRET: ${SESSION_SECRET}
+      ADMIN_USERNAME: ${ADMIN_USERNAME}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      CORS_ORIGIN: http://localhost:5173
+    ports:
+      - "3000:3000"
+    volumes:
+      - ../../:/workspace
+    depends_on:
+      - mysql
+
+  frontend:
+    image: oven/bun:1
+    container_name: utbk-frontend
+    working_dir: /workspace
+    command: >
+      sh -lc "bun install && bun --cwd apps/frontend run dev"
+    environment:
+      VITE_APP_NAME: UTBK Preparation
+      VITE_API_BASE_PATH: /api
+    ports:
+      - "5173:5173"
+    volumes:
+      - ../../:/workspace
+    depends_on:
+      - backend
+
+volumes:
+  mysql-data:

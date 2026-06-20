@@ -1,0 +1,37 @@
+import type { Pool } from "mysql2/promise";
+
+import { loadTestEnv } from "../../config/env";
+import { createPool } from "../../db/mysql";
+import { applyMigrations } from "../../db/migration-runner";
+
+let testPool: Pool | null = null;
+
+export async function getTestPool() {
+  if (testPool) {
+    return testPool;
+  }
+
+  const env = loadTestEnv();
+  testPool = createPool(env.TEST_DATABASE_URL);
+  await applyMigrations(testPool);
+
+  return testPool;
+}
+
+export async function resetDatabase() {
+  const pool = await getTestPool();
+
+  await pool.query("SET FOREIGN_KEY_CHECKS = 0");
+  await pool.query("TRUNCATE TABLE test_probe_records");
+  await pool.query("SET FOREIGN_KEY_CHECKS = 1");
+}
+
+export async function closeTestPool() {
+  if (!testPool) {
+    return;
+  }
+
+  await testPool.end();
+  testPool = null;
+}
+

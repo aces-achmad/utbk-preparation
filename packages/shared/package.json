@@ -1,0 +1,20 @@
+{
+  "name": "@utbk/shared",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./imports": "./src/imports/index.ts",
+    "./api": "./src/api/index.ts",
+    "./enums": "./src/enums/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "zod": "^4.1.5"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2"
+  }
+}
+
