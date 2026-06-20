@@ -12,6 +12,9 @@ import { changeAdminPassword } from "../modules/auth/services/change-admin-passw
 import { loginAdmin } from "../modules/auth/services/login-admin";
 import { logoutAdmin } from "../modules/auth/services/logout-admin";
 import { previewImport } from "../modules/imports/services/preview-import";
+import { startOrResumeAttempt } from "../modules/attempts/services/start-or-resume-attempt";
+import { autosaveAttemptAnswer } from "../modules/attempts/services/autosave-attempt-answer";
+import { getAttemptDetail } from "../modules/attempts/services/get-attempt-detail";
 import {
   archiveQuestion,
   bulkQuestionAction,
@@ -95,6 +98,12 @@ export function createApp({ logger, pool }: CreateAppOptions) {
   });
   const duplicatePackageSchema = z.object({
     newSlug: z.string().trim().min(1),
+  });
+  const startOrResumeAttemptSchema = z.object({
+    packageSlug: z.string().trim().min(1),
+  });
+  const autosaveAttemptAnswerSchema = z.object({
+    selectedOptionKeys: z.array(z.string().trim().min(1)),
   });
   const questionListQuerySchema = z.object({
     page: z.coerce.number().int().positive().default(1),
@@ -608,6 +617,55 @@ export function createApp({ logger, pool }: CreateAppOptions) {
       data: record,
     });
   });
+
+  app.post("/api/attempts/start-or-resume", requireSession({ pool }), async (c) => {
+    const payload = startOrResumeAttemptSchema.parse(await c.req.json());
+    const result = await startOrResumeAttempt({
+      pool: pool!,
+      logger,
+      packageSlug: payload.packageSlug,
+    });
+
+    return c.json({
+      success: true,
+      data: result,
+    });
+  });
+
+  app.get("/api/attempts/:attemptId", requireSession({ pool }), async (c) => {
+    const attemptId = Number(c.req.param("attemptId"));
+    const result = await getAttemptDetail({
+      pool: pool!,
+      attemptId,
+    });
+
+    return c.json({
+      success: true,
+      data: result,
+    });
+  });
+
+  app.put(
+    "/api/attempts/:attemptId/snapshots/:snapshotId/answer",
+    requireSession({ pool }),
+    async (c) => {
+      const attemptId = Number(c.req.param("attemptId"));
+      const snapshotId = Number(c.req.param("snapshotId"));
+      const payload = autosaveAttemptAnswerSchema.parse(await c.req.json());
+      const result = await autosaveAttemptAnswer({
+        pool: pool!,
+        logger,
+        attemptId,
+        snapshotId,
+        selectedOptionKeys: payload.selectedOptionKeys,
+      });
+
+      return c.json({
+        success: true,
+        data: result,
+      });
+    },
+  );
 
   return app;
 }

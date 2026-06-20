@@ -33,6 +33,15 @@ const routes = [
         path: "packages",
         component: () => import("../modules/packages/PackageWorkbenchView.vue"),
       },
+      {
+        path: "practice",
+        component: () => import("../modules/attempts/PracticePackageListView.vue"),
+      },
+      {
+        path: "attempts/:attemptId",
+        name: "attempt-viewer",
+        component: () => import("../modules/attempts/AttemptViewerView.vue"),
+      },
     ],
   },
 ];
