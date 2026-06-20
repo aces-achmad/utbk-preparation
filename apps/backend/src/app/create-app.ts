@@ -12,6 +12,17 @@ import { changeAdminPassword } from "../modules/auth/services/change-admin-passw
 import { loginAdmin } from "../modules/auth/services/login-admin";
 import { logoutAdmin } from "../modules/auth/services/logout-admin";
 import { previewImport } from "../modules/imports/services/preview-import";
+import {
+  archiveQuestion,
+  bulkQuestionAction,
+  createQuestion,
+  duplicateQuestion,
+  listQuestions,
+  publishQuestion,
+  updateQuestion,
+} from "../modules/questions/services/question-authoring";
+import { archiveSubject, createSubject, listSubjects, updateSubject } from "../modules/subjects/services/subject-authoring";
+import { archiveTopic, createTopic, listTopics, updateTopic } from "../modules/topics/services/topic-authoring";
 
 type CreateAppOptions = {
   logger: Logger;
@@ -33,8 +44,62 @@ export function createApp({ logger, pool }: CreateAppOptions) {
     currentPassword: z.string().min(1),
     newPassword: z.string().min(8),
   });
+  const subjectSchema = z.object({
+    slug: z.string().trim().min(1),
+    label: z.string().trim().min(1),
+    displayOrder: z.coerce.number().int().positive(),
+  });
+  const topicSchema = z.object({
+    slug: z.string().trim().min(1),
+    subjectSlug: z.string().trim().min(1),
+    label: z.string().trim().min(1),
+    displayOrder: z.coerce.number().int().positive(),
+  });
+  const questionOptionSchema = z.object({
+    option_key: z.string().trim().min(1),
+    option_text: z.string().trim().min(1),
+    is_correct: z.boolean(),
+  });
+  const questionSchema = z.object({
+    topicSlug: z.string().trim().min(1),
+    type: z.enum(["single_choice", "multiple_response"]),
+    source: z.string().trim().min(1).optional(),
+    difficulty: z.enum(["easy", "medium", "hard"]),
+    status: z.enum(["draft", "published"]).optional(),
+    questionText: z.string().trim().min(1),
+    explanationText: z.string(),
+    options: z.array(questionOptionSchema).min(2),
+  });
+  const bulkQuestionSchema = z.object({
+    action: z.enum(["publish", "archive", "draft"]),
+    externalIds: z.array(z.string().trim().min(1)).min(1),
+  });
+  const questionListQuerySchema = z.object({
+    page: z.coerce.number().int().positive().default(1),
+    pageSize: z.coerce.number().int().positive().max(100).default(20),
+    status: z.enum(["draft", "published"]).optional(),
+    subjectSlug: z.string().trim().min(1).optional(),
+    topicSlug: z.string().trim().min(1).optional(),
+    difficulty: z.enum(["easy", "medium", "hard"]).optional(),
+    archived: z
+      .enum(["true", "false"])
+      .transform((value) => value === "true")
+      .optional(),
+    search: z.string().trim().min(1).optional(),
+  });
 
   app.use("*", requestId());
+
+  app.onError((error, c) =>
+    c.json(
+      {
+        success: false,
+        message: error.message || "Unexpected server error.",
+        data: null,
+      },
+      classifyErrorStatus(error),
+    ),
+  );
 
   app.use("*", async (c, next) => {
     const startedAt = Date.now();
@@ -222,5 +287,224 @@ export function createApp({ logger, pool }: CreateAppOptions) {
     });
   });
 
+  app.get("/api/subjects", requireSession({ pool }), async (c) =>
+    c.json({
+      success: true,
+      data: await listSubjects(pool!),
+    }),
+  );
+
+  app.post("/api/subjects", requireSession({ pool }), async (c) => {
+    const payload = subjectSchema.parse(await c.req.json());
+    const subject = await createSubject({
+      pool: pool!,
+      logger,
+      slug: payload.slug,
+      label: payload.label,
+      displayOrder: payload.displayOrder,
+    });
+
+    return c.json({
+      success: true,
+      data: subject,
+    });
+  });
+
+  app.patch("/api/subjects/:slug", requireSession({ pool }), async (c) => {
+    const payload = subjectSchema.omit({ slug: true }).parse(await c.req.json());
+    const subject = await updateSubject({
+      pool: pool!,
+      logger,
+      slug: c.req.param("slug"),
+      label: payload.label,
+      displayOrder: payload.displayOrder,
+    });
+
+    return c.json({
+      success: true,
+      data: subject,
+    });
+  });
+
+  app.post("/api/subjects/:slug/archive", requireSession({ pool }), async (c) => {
+    const subject = await archiveSubject({
+      pool: pool!,
+      logger,
+      slug: c.req.param("slug"),
+    });
+
+    return c.json({
+      success: true,
+      data: subject,
+    });
+  });
+
+  app.get("/api/topics", requireSession({ pool }), async (c) =>
+    c.json({
+      success: true,
+      data: await listTopics(pool!),
+    }),
+  );
+
+  app.post("/api/topics", requireSession({ pool }), async (c) => {
+    const payload = topicSchema.parse(await c.req.json());
+    const topic = await createTopic({
+      pool: pool!,
+      logger,
+      slug: payload.slug,
+      subjectSlug: payload.subjectSlug,
+      label: payload.label,
+      displayOrder: payload.displayOrder,
+    });
+
+    return c.json({
+      success: true,
+      data: topic,
+    });
+  });
+
+  app.patch("/api/topics/:slug", requireSession({ pool }), async (c) => {
+    const payload = topicSchema.omit({ slug: true, subjectSlug: true }).parse(await c.req.json());
+    const topic = await updateTopic({
+      pool: pool!,
+      logger,
+      slug: c.req.param("slug"),
+      label: payload.label,
+      displayOrder: payload.displayOrder,
+    });
+
+    return c.json({
+      success: true,
+      data: topic,
+    });
+  });
+
+  app.post("/api/topics/:slug/archive", requireSession({ pool }), async (c) => {
+    const topic = await archiveTopic({
+      pool: pool!,
+      logger,
+      slug: c.req.param("slug"),
+    });
+
+    return c.json({
+      success: true,
+      data: topic,
+    });
+  });
+
+  app.get("/api/questions", requireSession({ pool }), async (c) => {
+    const query = questionListQuerySchema.parse(c.req.query());
+    const result = await listQuestions(pool!, query);
+
+    return c.json({
+      success: true,
+      data: result,
+    });
+  });
+
+  app.post("/api/questions", requireSession({ pool }), async (c) => {
+    const payload = questionSchema.parse(await c.req.json());
+    const question = await createQuestion({
+      pool: pool!,
+      logger,
+      input: payload,
+    });
+
+    return c.json({
+      success: true,
+      data: question,
+    });
+  });
+
+  app.patch("/api/questions/:externalId", requireSession({ pool }), async (c) => {
+    const payload = questionSchema.parse(await c.req.json());
+    const question = await updateQuestion({
+      pool: pool!,
+      logger,
+      externalId: c.req.param("externalId"),
+      input: payload,
+    });
+
+    return c.json({
+      success: true,
+      data: question,
+    });
+  });
+
+  app.post("/api/questions/:externalId/archive", requireSession({ pool }), async (c) => {
+    const question = await archiveQuestion({
+      pool: pool!,
+      logger,
+      externalId: c.req.param("externalId"),
+    });
+
+    return c.json({
+      success: true,
+      data: question,
+    });
+  });
+
+  app.post("/api/questions/:externalId/duplicate", requireSession({ pool }), async (c) => {
+    const question = await duplicateQuestion({
+      pool: pool!,
+      logger,
+      externalId: c.req.param("externalId"),
+    });
+
+    return c.json({
+      success: true,
+      data: question,
+    });
+  });
+
+  app.post("/api/questions/:externalId/publish", requireSession({ pool }), async (c) => {
+    const question = await publishQuestion({
+      pool: pool!,
+      logger,
+      externalId: c.req.param("externalId"),
+    });
+
+    return c.json({
+      success: true,
+      data: question,
+    });
+  });
+
+  app.post("/api/questions/bulk", requireSession({ pool }), async (c) => {
+    const payload = bulkQuestionSchema.parse(await c.req.json());
+    const result = await bulkQuestionAction({
+      pool: pool!,
+      logger,
+      action: payload.action,
+      externalIds: payload.externalIds,
+    });
+
+    return c.json({
+      success: true,
+      data: result,
+    });
+  });
+
   return app;
+}
+
+function classifyErrorStatus(error: Error) {
+  const message = error.message.toLowerCase();
+
+  if (message.includes("not found")) {
+    return 404;
+  }
+
+  if (
+    message.includes("required") ||
+    message.includes("must") ||
+    message.includes("cannot be archived") ||
+    message.includes("invalid credentials") ||
+    message.includes("authentication required") ||
+    message.includes("already exists")
+  ) {
+    return 400;
+  }
+
+  return 500;
 }

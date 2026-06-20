@@ -24,6 +24,8 @@ export async function resetDatabase() {
   await pool.query("SET FOREIGN_KEY_CHECKS = 0");
   await pool.query("TRUNCATE TABLE import_sessions");
   await pool.query("TRUNCATE TABLE questions");
+  await pool.query("TRUNCATE TABLE topics");
+  await pool.query("TRUNCATE TABLE subjects");
   await pool.query("TRUNCATE TABLE auth_sessions");
   await pool.query("TRUNCATE TABLE admin_users");
   await pool.query("TRUNCATE TABLE test_probe_records");

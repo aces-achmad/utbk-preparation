@@ -25,6 +25,10 @@ const routes = [
         path: "imports",
         component: () => import("../modules/imports/ImportPreviewView.vue"),
       },
+      {
+        path: "questions",
+        component: () => import("../modules/questions/QuestionWorkbenchView.vue"),
+      },
     ],
   },
 ];
